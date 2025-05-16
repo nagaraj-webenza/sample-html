@@ -2,53 +2,42 @@ pipeline {
     agent any
 
     environment {
-        // Define environment variables here
-        IMAGE_NAME = 'html-profile'
-        CONTAINER_NAME = 'my-profile'
-        PORT = '8080'
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials-id') // Jenkins credentials ID
+        DOCKERHUB_REPO = 'nagarajsajjan/newtest'
+        IMAGE_TAG = "latest"
     }
 
     stages {
-        stage ('checkout code') {
+        stage('Clone Code') {
             steps {
-                    checkout scm
+                git 'https://github.com/nagaraj-webenza/sample-html.git'
             }
         }
-        stage ('build docker image') {
+
+        stage('Build Docker Image') {
             steps {
                 script {
-                    // Build the Docker image
-                    sh "docker build -t ${IMAGE_NAME} ."
+                    sh "docker build -t $DOCKERHUB_REPO:$IMAGE_TAG ."
                 }
             }
         }
-        stage ('stop running container') {
+
+        stage('Push Docker Image') {
             steps {
                 script {
-                    // Stop and remove existing container if it exists
-                    sh """
-                    if [ \$(docker ps -aq -f name=$CONTAINER_NAME) ]; then
-                      docker stop $CONTAINER_NAME
-                      docker rm $CONTAINER_NAME
-                    fi
-                    """
-                }            }
-        }
-        stage ('Run Docker Container') {
-            steps {
-                script {
-                    // Run the Docker container
-                    sh "docker run -d --name ${CONTAINER_NAME} -p ${PORT}:${PORT} ${IMAGE_NAME}"
+                    sh "echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin"
+                    sh "docker push $DOCKERHUB_REPO:$IMAGE_TAG"
                 }
             }
         }
     }
+
     post {
         success {
-            echo 'Pipeline completed successfully!'
+            echo "Docker image pushed successfully to Docker Hub."
         }
         failure {
-            echo 'Pipeline failed!'
+            echo "Build failed!"
         }
     }
 }
